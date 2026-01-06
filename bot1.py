@@ -1,10 +1,13 @@
+import os
+
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import logging
 
 logging.basicConfig(level=logging.INFO)
 
-BOT_TOKEN = "7753954925:AAEurjHYWOPlRwmtMnXUui13K6dMS_I5-_I"
+BOT_TOKEN = os.environ.get("BOT_TOKEN")
+
 
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
