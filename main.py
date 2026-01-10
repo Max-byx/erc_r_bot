@@ -229,10 +229,10 @@ async def answer_handler(call: types.CallbackQuery):
 
     if user_index[uid] < 36:
        qn = user_index[uid]
-        await call.message.answer(
+       await call.message.answer(
             f"Вопрос {qn + 1} из 36:\n\n{QUESTIONS[qn]}",
             reply_markup=scale_keyboard()
-        )
+       )
     else:
         anxiety = sum(user_answers[uid][i] for i in ANXIETY_IDX)
         avoidance = sum(user_answers[uid][i] for i in AVOIDANCE_IDX)
