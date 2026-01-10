@@ -242,11 +242,11 @@ else:
         interpretation = interpret_attachment(anxiety, avoidance)
         
         # 3. Формируем единое красивое сообщение
-     result_message = (
-            f"📊 **Ваши результаты:**\n\n"
-            f"🔹 **Тревожность:** {anxiety}/126\n"
-            f"🔹 **Избегание:** {avoidance}/126\n\n"
-            f"{interpretation}",
+     result_message = f(
+            "📊 **Ваши результаты:**\n\n"
+            "🔹 **Тревожность:** {anxiety}/126\n"
+            "🔹 **Избегание:** {avoidance}/126\n\n"
+            "{interpretation}"
         )
      await call.message.answer(result_message, parse_mode="Markdown")
     await call.answer()
