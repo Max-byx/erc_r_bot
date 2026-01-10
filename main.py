@@ -1,20 +1,21 @@
 import os
-
-from aiogram import Bot, Dispatcher, executor, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 import logging
+import asyncio
+from aiogram import Bot, Dispatcher, executor, types
+from aiohttp import web
 
 logging.basicConfig(level=logging.INFO)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-
-
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
-# -----------------------------
-# ВОПРОСЫ (36)
-# -----------------------------
+async def handle(request):
+    return web.Response(text="Bot is alive!")
+
+app = web.Application()
+app.router.add_get('/', handle)
+# ----------------------------------------
 QUESTIONS = [
     "Я беспокоюсь о том, что партнёр может меня разлюбить.",
     "Мне некомфортно, когда партнёр становится слишком близким.",
@@ -239,6 +240,8 @@ async def answer_handler(call: types.CallbackQuery):
 
     await call.answer()
 
-if __name__ == "__main__":
-    executor.start_polling(dp)
-
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 10000))
+    loop = asyncio.get_event_loop()
+    loop.create_task(dp.start_polling())
+    web.run_app(app, host='0.0.0.0', port=port)
