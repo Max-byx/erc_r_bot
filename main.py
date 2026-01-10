@@ -233,13 +233,22 @@ async def answer_handler(call: types.CallbackQuery):
             f"Вопрос {qn + 1} из 36:\n\n{QUESTIONS[qn]}",
             reply_markup=scale_keyboard()
        )
-    else:
+else:
+        # 1. Считаем баллы по категориям
         anxiety = sum(user_answers[uid][i] for i in ANXIETY_IDX)
         avoidance = sum(user_answers[uid][i] for i in AVOIDANCE_IDX)
-
-        text = interpret_attachment(anxiety, avoidance)
-        await call.message.answer(text)
-
+        
+        # 2. Получаем текстовую интерпретацию
+        interpretation = interpret_attachment(anxiety, avoidance)
+        
+        # 3. Формируем единое красивое сообщение
+     result_message = (
+            f"📊 **Ваши результаты:**\n\n"
+            f"🔹 **Тревожность:** {anxiety}/126\n"
+            f"🔹 **Избегание:** {avoidance}/126\n\n"
+            f"{interpretation}"
+        )
+     await call.message.answer(result_message)
     await call.answer()
 
 if __name__ == '__main__':
