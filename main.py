@@ -1,7 +1,8 @@
 import os
 import logging
 import asyncio
-from aiogram import Bot, Dispatcher, executor, types
+from aiogram import Bot, Dispatcher, types
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiohttp import web
 
 logging.basicConfig(level=logging.INFO)
@@ -191,22 +192,18 @@ async def start_handler(message: types.Message):
     user_index[uid] = 0
 
     desc = "\n".join(ANSWER_TEXT[i] for i in range(1, 8))
+    
+    # Создаем клавиатуру как отдельный объект
+    kb = InlineKeyboardMarkup()
+    kb.add(InlineKeyboardButton("Начать тест", callback_data="start_test"))
 
     await message.answer(
         "Это опросник для оценки особенностей привязанности в близких отношениях.\n\n"
         "Вам будут предложены 36 утверждений.\n"
-        "Оцените, насколько каждое из них вам подходит, по шкале от 1 до 7, "
-        "опираясь на первое ощущение.\n\n"
-        "Здесь нет правильных или неправильных ответов — важна только ваша "
-        "субъективная оценка.\n\n"
-        "После завершения вы получите краткий результат и рекомендацию, "
-        "что можно сделать дальше.\n\n"
+        "Оцените их по шкале от 1 до 7.\n\n"
         f"{desc}",
-        reply_markup=InlineKeyboardMarkup().add(
-            InlineKeyboardButton("Начать тест", callback_data="start_test")
-        )
+        reply_markup=kb
     )
-
 @dp.callback_query_handler(lambda c: c.data == "start_test")
 async def start_test(call: types.CallbackQuery):
     uid = call.from_user.id
