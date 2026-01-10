@@ -228,9 +228,9 @@ async def answer_handler(call: types.CallbackQuery):
     user_index[uid] += 1
 
     if user_index[uid] < 36:
-        qn = user_index[uid] + 1
+       qn = user_index[uid]
         await call.message.answer(
-            f"Вопрос {qn} из 36:\n\n{QUESTIONS[user_index[uid]]}",
+            f"Вопрос {qn + 1} из 36:\n\n{QUESTIONS[qn]}",
             reply_markup=scale_keyboard()
         )
     else:
