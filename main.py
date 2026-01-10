@@ -241,7 +241,10 @@ async def answer_handler(call: types.CallbackQuery):
     await call.answer()
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
-    loop = asyncio.get_event_loop()
-    loop.create_task(dp.start_polling())
+    port = int(os.environ.get("PORT", 10000)
+    from aiohttp import web
+    async def on_startup(app):
+        import asyncio
+        asyncio.create_task(dp.start_polling())
+    app.on_startup.append(on_startup)
     web.run_app(app, host='0.0.0.0', port=port)
