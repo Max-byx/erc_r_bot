@@ -217,8 +217,13 @@ async def start_test(call: types.CallbackQuery):
 @dp.callback_query_handler(lambda c: c.data.startswith("ans_"))
 async def answer_handler(call: types.CallbackQuery):
     uid = call.from_user.id
+    # Проверка, чтобы бот не падал при перезапуске
+    if uid not in user_answers:
+        user_answers[uid] = []
+    if uid not in user_index:
+        user_index[uid] = 0
+    
     score = int(call.data.split("_")[1])
-
     user_answers[uid].append(score)
     user_index[uid] += 1
 
