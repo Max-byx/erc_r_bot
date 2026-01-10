@@ -246,9 +246,9 @@ else:
             f"📊 **Ваши результаты:**\n\n"
             f"🔹 **Тревожность:** {anxiety}/126\n"
             f"🔹 **Избегание:** {avoidance}/126\n\n"
-            f"{interpretation}"
+            f"{interpretation}",
         )
-     await call.message.answer(result_message)
+     await call.message.answer(result_message, parse_mode="Markdown")
     await call.answer()
 
 if __name__ == '__main__':
