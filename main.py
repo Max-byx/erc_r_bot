@@ -244,9 +244,14 @@ async def answer_handler(call: types.CallbackQuery):
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
-    from aiohttp import web
+    
     async def on_startup(app):
-        import asyncio
+        # 1. Очищаем старые соединения, чтобы бот не тормозил и не двоился
+        await bot.delete_webhook(drop_pending_updates=True)
+        # 2. Запускаем бота
         asyncio.create_task(dp.start_polling())
+    
     app.on_startup.append(on_startup)
+    
+    # 3. Запускаем веб-сервер для Render на порту 10000
     web.run_app(app, host='0.0.0.0', port=port)
