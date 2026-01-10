@@ -241,7 +241,7 @@ async def answer_handler(call: types.CallbackQuery):
     await call.answer()
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000)
+    port = int(os.environ.get("PORT", 10000))
     from aiohttp import web
     async def on_startup(app):
         import asyncio
