@@ -11,11 +11,13 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 
-async def handle(request):
+# Веб-сервер для keep-alive (чтобы бот не засыпал на Render)
+web_app = web.Application()
+
+async def handle_web(request):
     return web.Response(text="Bot is alive!")
 
-app = web.Application()
-app.router.add_get('/', handle)
+web_app.router.add_get('/', handle_web)
 # ----------------------------------------
 QUESTIONS = [
     "Я беспокоюсь о том, что партнёр может меня разлюбить.",
@@ -24,7 +26,7 @@ QUESTIONS = [
     "Я часто думаю о том, насколько я значим для партнёра.",
     "Я предпочитаю не слишком зависеть от партнёра.",
     "Я переживаю, что партнёр не так вовлечён в отношения, как я.",
-    "Мне сложно полностью открываться партнёру.",
+    "Мне сложно полностью открываться партнёра.",
     "Я боюсь быть отвергнутым.",
     "Я чувствую себя скованно, когда партнёр слишком эмоционально близок.",
     "Мне нужно много подтверждений любви.",
@@ -253,18 +255,10 @@ async def answer_handler(call: types.CallbackQuery):
     
     await call.answer()
 
-# Веб-сервер для keep-alive (чтобы бот не засыпал на Render)
-app = web.Application()
-
-async def handle(request):
-    return web.Response(text="Bot is alive!")
-
-app.router.add_get('/', handle)
-
 def run_web_server():
     """Запуск веб-сервера в отдельном потоке"""
     port = int(os.environ.get("PORT", 10000))
-    web.run_app(app, host='0.0.0.0', port=port)
+    web.run_app(web_app, host='0.0.0.0', port=port)
 
 if __name__ == '__main__':
     import threading
