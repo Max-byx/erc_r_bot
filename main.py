@@ -235,38 +235,31 @@ async def answer_handler(call: types.CallbackQuery):
        )
 else:
         # 1. Считаем баллы
-        anxiety = sum(user_answers[uid][i] for i in ANXIETY_IDX)
-        avoidance = sum(user_answers[uid][i] for i in AVOIDANCE_IDX)
+        ans_list = user_answers[uid]
+        anxiety = sum(ans_list[i] for i in ANXIETY_IDX)
+        avoidance = sum(ans_list[i] for i in AVOIDANCE_IDX)
         
         # 2. Получаем интерпретацию
-        interpretation = interpret_attachment(anxiety, avoidance)
+        text = interpret_attachment(anxiety, avoidance)
         
-        # 3. Формируем сообщение (исправленный синтаксис)
-        result_message = (
-            f"📊 *Ваши результаты:*\n\n"
-            f"🔹 *Тревожность:* {anxiety}/126\n"
-            f"🔹 *Избегание:* {avoidance}/126\n\n"
-            f"{interpretation}"
-        )
+        # 3. Формируем сообщение
+        res = f"📊 *Ваши результаты:*\n\n🔹 *Тревожность:* {anxiety}/126\n🔹 *Избегание:* {avoidance}/126\n\n{text}"
         
         # Отправляем результат
-        await call.message.edit_text(result_message, parse_mode="Markdown")
+        await call.message.edit_text(res, parse_mode="Markdown")
         
-        # Сброс счетчика, чтобы при новом /start тест начался заново
+        # Сброс для нового прохождения
         user_answers[uid] = []
         user_index[uid] = 0
+
     await call.answer()
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     
     async def on_startup(app):
-        # 1. Очищаем старые соединения, чтобы бот не тормозил и не двоился
         await bot.delete_webhook(drop_pending_updates=True)
-        # 2. Запускаем бота
         asyncio.create_task(dp.start_polling())
     
     app.on_startup.append(on_startup)
-    
-    # 3. Запускаем веб-сервер для Render на порту 10000
     web.run_app(app, host='0.0.0.0', port=port)
