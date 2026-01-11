@@ -258,35 +258,49 @@ if __name__ == '__main__':
     import time
     from aiogram import executor
     import asyncio
-    
+
     def run_web_server():
-        """Запуск веб-сервера в отдельном потоке"""
+        """Безопасный запуск веб-сервера для Render"""
         port = int(os.environ.get("PORT", 10000))
-        web.run_app(app, host='0.0.0.0', port=port)
-    
-    # Очистка перед запуском
+        
+        try:
+            # Создаем новый цикл событий специально для этого потока
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            runner = web.AppRunner(app)
+            loop.run_until_complete(runner.setup())
+            site = web.TCPSite(runner, '0.0.0.0', port)
+            loop.run_until_complete(site.start())
+            logging.info(f"🌐 Веб-сервер запущен на порту {port}")
+            loop.run_forever()
+        except Exception as e:
+            logging.error(f"Ошибка веб-сервера: {e}")
+
     async def cleanup():
-        await bot.delete_webhook(drop_pending_updates=True)
-        print("🧹 Очищены старые соединения")
-    
-    # Основной запуск
+        """Очистка соединений перед стартом"""
+        try:
+            await bot.delete_webhook(drop_pending_updates=True)
+            logging.info("🧹 Очищены старые соединения")
+        except Exception as e:
+            logging.error(f"Ошибка очистки: {e}")
+
     try:
-        # 1. Очистка старых процессов
+        # 1. Очистка старых сессий в главном потоке
         asyncio.run(cleanup())
-        
-        # 2. Запуск веб-сервера
-        web_thread = threading.Thread(target=run_web_server, daemon=True)
-        web_thread.start()
-        print("🌐 Веб-сервер запущен на порту 10000")
-        
-        # 3. Короткая пауза
-        time.sleep(1)
-        
-        # 4. Запуск бота
-        print("🤖 Запускаю Telegram бота...")
+
+        # 2. Запуск веб-сервера в отдельном потоке
+        thread = threading.Thread(target=run_web_server, daemon=True)
+        thread.start()
+
+        # 3. Даем время серверу открыться
+        time.sleep(2)
+
+        # 4. Запуск бота (этот метод самый надежный для главного потока)
+        logging.info("🤖 Запускаю Telegram бота...")
         executor.start_polling(dp, skip_updates=True)
-        
-    except KeyboardInterrupt:
-        print("\n🛑 Бот остановлен")
+
+    except (KeyboardInterrupt, SystemExit):
+        logging.info("🛑 Бот остановлен")
     except Exception as e:
-        print(f"❌ Ошибка: {e}")
+        logging.error(f"❌ Критическая ошибка: {e}")
