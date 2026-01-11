@@ -5,17 +5,26 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiohttp import web
 
-logging.basicConfig(level=logging.INFO)
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
+# Конфигурация
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
+RENDER_URL = "https://erc-r-bot.onrender.com"  # Ваш URL на Render
+WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
+WEBHOOK_URL = f"{RENDER_URL}{WEBHOOK_PATH}"
+
+# Инициализация бота
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
-
-async def handle(request):
-    return web.Response(text="Bot is alive!")
-
 app = web.Application()
-app.router.add_get('/', handle)
+
+# ----------------------------------------
+# ВОПРОСЫ ТЕСТА
 # ----------------------------------------
 QUESTIONS = [
     "Я беспокоюсь о том, что партнёр может меня разлюбить.",
@@ -183,7 +192,7 @@ def interpret_attachment(anxiety, avoidance):
     return "\n\n".join(result)
 
 # -----------------------------
-# СТАРТ
+# ОБРАБОТЧИКИ КОМАНД
 # -----------------------------
 @dp.message_handler(commands=["start"])
 async def start_handler(message: types.Message):
@@ -253,58 +262,88 @@ async def answer_handler(call: types.CallbackQuery):
     
     await call.answer()
 
-if __name__ == '__main__':
-    import threading
-    import time
-    from aiogram import executor
-    import asyncio
-    
-    # Простейший веб-сервер на чистом Python
-    def simple_web_server():
-        import socket
-        port = int(os.environ.get("PORT", 10000))
-        
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.bind(('0.0.0.0', port))
-            s.listen(5)
-            logging.info(f"🌐 Сокет открыт на порту {port}")
-            
-            while True:
-                try:
-                    conn, addr = s.accept()
-                    with conn:
-                        data = conn.recv(1024)
-                        # Простейший HTTP ответ
-                        response = (
-                            b'HTTP/1.1 200 OK\r\n'
-                            b'Content-Type: text/plain\r\n'
-                            b'Content-Length: 12\r\n'
-                            b'\r\n'
-                            b'Bot is alive!'
-                        )
-                        conn.sendall(response)
-                except Exception as e:
-                    logging.error(f"Ошибка веб-сервера: {e}")
-    
+# -----------------------------
+# ВЕБХУКИ И СЕРВЕР
+# -----------------------------
+async def handle_root(request):
+    """Обработчик корневого пути для health checks"""
+    return web.Response(text="Bot is alive and ready!")
+
+async def handle_webhook(request):
+    """Обработчик вебхуков от Telegram"""
     try:
-        # 1. Очистка старых соединений
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(bot.delete_webhook(drop_pending_updates=True))
-        logging.info("🧹 Очищены старые соединения")
+        # Проверяем токен из URL
+        token = request.match_info.get('token')
+        if token != BOT_TOKEN:
+            logger.warning(f"Неверный токен: {token}")
+            return web.Response(status=403, text="Forbidden")
         
-        # 2. Веб-сервер в фоновом потоке
-        thread = threading.Thread(target=simple_web_server, daemon=True)
-        thread.start()
-        time.sleep(1)
-        logging.info("🌐 Веб-сервер запущен")
+        # Парсим обновление от Telegram
+        data = await request.json()
+        update = types.Update(**data)
         
-        # 3. Запуск Telegram бота
-        logging.info("🤖 Запускаю Telegram бота...")
-        executor.start_polling(dp, skip_updates=True)
+        # Обрабатываем обновление
+        await dp.process_update(update)
         
-    except KeyboardInterrupt:
-        logging.info("🛑 Бот остановлен")
+        return web.Response(text="OK")
+    
     except Exception as e:
-        logging.error(f"❌ Ошибка: {e}")
+        logger.error(f"Ошибка обработки вебхука: {e}")
+        return web.Response(status=500, text="Internal Server Error")
+
+async def on_startup(app):
+    """Действия при запуске приложения"""
+    try:
+        # Удаляем старый вебхук и устанавливаем новый
+        await bot.delete_webhook(drop_pending_updates=True)
+        await bot.set_webhook(
+            url=WEBHOOK_URL,
+            certificate=None,
+            max_connections=40,
+            allowed_updates=["message", "callback_query"]
+        )
+        logger.info(f"✅ Вебхук установлен: {WEBHOOK_URL}")
+        logger.info("🤖 Бот запущен и готов к работе!")
+        
+    except Exception as e:
+        logger.error(f"❌ Ошибка при запуске: {e}")
+        raise
+
+async def on_shutdown(app):
+    """Действия при остановке приложения"""
+    try:
+        # Удаляем вебхук и закрываем соединения
+        await bot.delete_webhook()
+        await dp.storage.close()
+        await dp.storage.wait_closed()
+        logger.info("🛑 Бот остановлен")
+        
+    except Exception as e:
+        logger.error(f"Ошибка при остановке: {e}")
+
+# Настраиваем маршруты
+app.router.add_get('/', handle_root)
+app.router.add_post('/webhook/{token}', handle_webhook)
+
+# Подключаем обработчики жизненного цикла
+app.on_startup.append(on_startup)
+app.on_shutdown.append(on_shutdown)
+
+# -----------------------------
+# ЗАПУСК СЕРВЕРА
+# -----------------------------
+if __name__ == '__main__':
+    # Получаем порт от Render
+    port = int(os.environ.get("PORT", 10000))
+    
+    # Запускаем веб-сервер
+    logger.info(f"🚀 Запускаю сервер на порту {port}")
+    logger.info(f"🌐 URL: {RENDER_URL}")
+    
+    web.run_app(
+        app,
+        host='0.0.0.0',
+        port=port,
+        handle_signals=False,  # Важно для Render!
+        access_log=None  # Отключаем подробные логи доступа
+    )
