@@ -259,10 +259,20 @@ if __name__ == '__main__':
     async def on_startup(app):
         # 1. Очищаем старые соединения, чтобы бот не тормозил и не двоился
         await bot.delete_webhook(drop_pending_updates=True)
-        # 2. Запускаем бота
+        # 2. Запускаем бота в отдельной задаче
         asyncio.create_task(dp.start_polling())
     
     app.on_startup.append(on_startup)
     
-    # 3. Запускаем веб-сервер для Render на порту 10000
-    web.run_app(app, host='0.0.0.0', port=port)
+    try:
+        # 3. Запускаем веб-сервер для Render на порту 10000
+        web.run_app(app, host='0.0.0.0', port=port)
+    except KeyboardInterrupt:
+        # Корректное завершение при Ctrl+C
+        pass
+    finally:
+        # Закрываем сессии при завершении
+        import asyncio
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(bot.session.close())
