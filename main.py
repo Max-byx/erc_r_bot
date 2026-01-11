@@ -254,15 +254,39 @@ async def answer_handler(call: types.CallbackQuery):
     await call.answer()
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 10000))
+    import threading
+    import time
+    from aiogram import executor
+    import asyncio
     
-    async def on_startup(app):
-        # 1. Очищаем старые соединения, чтобы бот не тормозил и не двоился
+    def run_web_server():
+        """Запуск веб-сервера в отдельном потоке"""
+        port = int(os.environ.get("PORT", 10000))
+        web.run_app(app, host='0.0.0.0', port=port)
+    
+    # Очистка перед запуском
+    async def cleanup():
         await bot.delete_webhook(drop_pending_updates=True)
-        # 2. Запускаем бота
-        asyncio.create_task(dp.start_polling())
+        print("🧹 Очищены старые соединения")
     
-    app.on_startup.append(on_startup)
-    
-    # 3. Запускаем веб-сервер для Render на порту 10000
-    web.run_app(app, host='0.0.0.0', port=port)
+    # Основной запуск
+    try:
+        # 1. Очистка старых процессов
+        asyncio.run(cleanup())
+        
+        # 2. Запуск веб-сервера
+        web_thread = threading.Thread(target=run_web_server, daemon=True)
+        web_thread.start()
+        print("🌐 Веб-сервер запущен на порту 10000")
+        
+        # 3. Короткая пауза
+        time.sleep(1)
+        
+        # 4. Запуск бота
+        print("🤖 Запускаю Telegram бота...")
+        executor.start_polling(dp, skip_updates=True)
+        
+    except KeyboardInterrupt:
+        print("\n🛑 Бот остановлен")
+    except Exception as e:
+        print(f"❌ Ошибка: {e}")
