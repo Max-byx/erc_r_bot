@@ -234,21 +234,27 @@ async def answer_handler(call: types.CallbackQuery):
             reply_markup=scale_keyboard()
        )
 else:
-        # 1. Считаем баллы по категориям
+        # 1. Считаем баллы
         anxiety = sum(user_answers[uid][i] for i in ANXIETY_IDX)
         avoidance = sum(user_answers[uid][i] for i in AVOIDANCE_IDX)
         
-        # 2. Получаем текстовую интерпретацию
+        # 2. Получаем интерпретацию
         interpretation = interpret_attachment(anxiety, avoidance)
         
-        # 3. Формируем единое красивое сообщение
-     result_message = f(
-            "📊 **Ваши результаты:**\n\n"
-            "🔹 **Тревожность:** {anxiety}/126\n"
-            "🔹 **Избегание:** {avoidance}/126\n\n"
-            "{interpretation}"
+        # 3. Формируем сообщение (исправленный синтаксис)
+        result_message = (
+            f"📊 *Ваши результаты:*\n\n"
+            f"🔹 *Тревожность:* {anxiety}/126\n"
+            f"🔹 *Избегание:* {avoidance}/126\n\n"
+            f"{interpretation}"
         )
-     await call.message.answer(result_message, parse_mode="Markdown")
+        
+        # Отправляем результат
+        await call.message.edit_text(result_message, parse_mode="Markdown")
+        
+        # Сброс счетчика, чтобы при новом /start тест начался заново
+        user_answers[uid] = []
+        user_index[uid] = 0
     await call.answer()
 
 if __name__ == '__main__':
