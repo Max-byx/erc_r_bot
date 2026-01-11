@@ -253,20 +253,35 @@ async def answer_handler(call: types.CallbackQuery):
     
     await call.answer()
 
-if __name__ == '__main__':
+# Веб-сервер для keep-alive (чтобы бот не засыпал на Render)
+app = web.Application()
+
+async def handle(request):
+    return web.Response(text="Bot is alive!")
+
+app.router.add_get('/', handle)
+
+def run_web_server():
+    """Запуск веб-сервера в отдельном потоке"""
     port = int(os.environ.get("PORT", 10000))
+    web.run_app(app, host='0.0.0.0', port=port)
+
+if __name__ == '__main__':
+    import threading
+    import time
+    from aiogram import executor
     
-    async def on_startup(app):
-        # 1. Очищаем старые соединения, чтобы бот не тормозил и не двоился
-        await bot.delete_webhook(drop_pending_updates=True)
-        # 2. Запускаем бота в отдельной задаче
-        asyncio.create_task(dp.start_polling())
+    # 1. Запускаем веб-сервер в отдельном потоке (для UptimeRobot)
+    web_thread = threading.Thread(target=run_web_server, daemon=True)
+    web_thread.start()
     
-    app.on_startup.append(on_startup)
+    # 2. Ждем 3 секунды, чтобы веб-сервер успел запуститься
+    print("Запускаю веб-сервер...")
+    time.sleep(3)
     
-    try:
-        # 3. Запускаем веб-сервер для Render на порту 10000
-        web.run_app(app, host='0.0.0.0', port=port)
+    # 3. Запускаем Telegram бота
+    print("Запускаю Telegram бота...")
+    executor.start_polling(dp, skip_updates=True)
     except KeyboardInterrupt:
         # Корректное завершение при Ctrl+C
         pass
