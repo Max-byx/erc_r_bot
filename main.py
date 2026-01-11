@@ -37,7 +37,7 @@ QUESTIONS = [
     "Я предпочитаю справляться с трудностями самостоятельно.",
     "Мне сложно переносить неопределённость в отношениях.",
     "Я чувствую дискомфорт, когда от меня ожидают эмоциональной близости.",
-    "Я не люблю, когда партнёр слишком на меня рассчитывает.",
+    "Я не люблю, когда партnёр слишком на меня рассчитывает.",
     "Я часто переживаю из-за отношений.",
     "Мне сложно делиться личными переживаниями.",
     "Я боюсь, что партнёр найдёт кого-то лучше.",
@@ -271,17 +271,19 @@ if __name__ == '__main__':
     import time
     from aiogram import executor
     
-    # 1. Запускаем веб-сервер в отдельном потоке (для UptimeRobot)
-    web_thread = threading.Thread(target=run_web_server, daemon=True)
-    web_thread.start()
-    
-    # 2. Ждем 3 секунды, чтобы веб-сервер успел запуститься
-    print("Запускаю веб-сервер...")
-    time.sleep(3)
-    
-    # 3. Запускаем Telegram бота
-    print("Запускаю Telegram бота...")
-    executor.start_polling(dp, skip_updates=True)
+    try:
+        # 1. Запускаем веб-сервер в отдельном потоке (для UptimeRobot)
+        web_thread = threading.Thread(target=run_web_server, daemon=True)
+        web_thread.start()
+        
+        # 2. Ждем 3 секунды, чтобы веб-сервер успел запуститься
+        print("Запускаю веб-сервер...")
+        time.sleep(3)
+        
+        # 3. Запускаем Telegram бота
+        print("Запускаю Telegram бота...")
+        executor.start_polling(dp, skip_updates=True)
+        
     except KeyboardInterrupt:
         # Корректное завершение при Ctrl+C
         pass
