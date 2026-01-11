@@ -204,6 +204,7 @@ async def start_handler(message: types.Message):
         f"{desc}",
         reply_markup=kb
     )
+
 @dp.callback_query_handler(lambda c: c.data == "start_test")
 async def start_test(call: types.CallbackQuery):
     uid = call.from_user.id
@@ -228,38 +229,40 @@ async def answer_handler(call: types.CallbackQuery):
     user_index[uid] += 1
 
     if user_index[uid] < 36:
-       qn = user_index[uid]
-       await call.message.answer(
+        qn = user_index[uid]
+        await call.message.answer(
             f"Вопрос {qn + 1} из 36:\n\n{QUESTIONS[qn]}",
             reply_markup=scale_keyboard()
-       )
-else:
-        # 1. Считаем баллы
-        ans_list = user_answers[uid]
-        anxiety = sum(ans_list[i] for i in ANXIETY_IDX)
-        avoidance = sum(ans_list[i] for i in AVOIDANCE_IDX)
+        )
+    else:
+        # 1. Считаем баллы по категориям
+        anxiety = sum(user_answers[uid][i] for i in ANXIETY_IDX)
+        avoidance = sum(user_answers[uid][i] for i in AVOIDANCE_IDX)
         
-        # 2. Получаем интерпретацию
-        text = interpret_attachment(anxiety, avoidance)
+        # 2. Получаем текстовую интерпретацию
+        interpretation = interpret_attachment(anxiety, avoidance)
         
-        # 3. Формируем сообщение
-        res = f"📊 *Ваши результаты:*\n\n🔹 *Тревожность:* {anxiety}/126\n🔹 *Избегание:* {avoidance}/126\n\n{text}"
-        
-        # Отправляем результат
-        await call.message.edit_text(res, parse_mode="Markdown")
-        
-        # Сброс для нового прохождения
-        user_answers[uid] = []
-        user_index[uid] = 0
-
+        # 3. Формируем единое красивое сообщение
+        result_message = (
+            f"📊 **Ваши результаты:**\n\n"
+            f"🔹 **Тревожность:** {anxiety}/126\n"
+            f"🔹 **Избегание:** {avoidance}/126\n\n"
+            f"{interpretation}"
+        )
+        await call.message.answer(result_message, parse_mode="Markdown")
+    
     await call.answer()
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
     
     async def on_startup(app):
+        # 1. Очищаем старые соединения, чтобы бот не тормозил и не двоился
         await bot.delete_webhook(drop_pending_updates=True)
+        # 2. Запускаем бота
         asyncio.create_task(dp.start_polling())
     
     app.on_startup.append(on_startup)
+    
+    # 3. Запускаем веб-сервер для Render на порту 10000
     web.run_app(app, host='0.0.0.0', port=port)
