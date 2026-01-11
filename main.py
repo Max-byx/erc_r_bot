@@ -258,48 +258,53 @@ if __name__ == '__main__':
     import time
     from aiogram import executor
     import asyncio
-
- if __name__ == '__main__':
-    import threading
-    import time
-    from aiogram import executor
-    import asyncio
-
-    def run_web_server():
-        """Безопасный запуск веб-сервера для Render"""
+    
+    # Простейший веб-сервер на чистом Python
+    def simple_web_server():
+        import socket
         port = int(os.environ.get("PORT", 10000))
         
-        # ВЕБ-СЕРВЕР ЗАПУСКАЕТСЯ В ГЛАВНОМ ПОТОКЕ!
-        # Используем параметр handle_signals=False
-        web.run_app(
-            app, 
-            host='0.0.0.0', 
-            port=port,
-            handle_signals=False  # КРИТИЧЕСКИ ВАЖНО!
-        )
-
-    async def main():
-        """Основная асинхронная функция"""
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind(('0.0.0.0', port))
+            s.listen(5)
+            logging.info(f"🌐 Сокет открыт на порту {port}")
+            
+            while True:
+                try:
+                    conn, addr = s.accept()
+                    with conn:
+                        data = conn.recv(1024)
+                        # Простейший HTTP ответ
+                        response = (
+                            b'HTTP/1.1 200 OK\r\n'
+                            b'Content-Type: text/plain\r\n'
+                            b'Content-Length: 12\r\n'
+                            b'\r\n'
+                            b'Bot is alive!'
+                        )
+                        conn.sendall(response)
+                except Exception as e:
+                    logging.error(f"Ошибка веб-сервера: {e}")
+    
+    try:
         # 1. Очистка старых соединений
-        await bot.delete_webhook(drop_pending_updates=True)
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(bot.delete_webhook(drop_pending_updates=True))
         logging.info("🧹 Очищены старые соединения")
         
-        # 2. Запускаем веб-сервер в отдельном потоке
-        thread = threading.Thread(target=run_web_server, daemon=True)
+        # 2. Веб-сервер в фоновом потоке
+        thread = threading.Thread(target=simple_web_server, daemon=True)
         thread.start()
+        time.sleep(1)
+        logging.info("🌐 Веб-сервер запущен")
         
-        # 3. Даем время серверу открыться
-        await asyncio.sleep(2)
-        logging.info("🌐 Веб-сервер запущен на порту 10000")
-        
-        # 4. Запускаем бота
+        # 3. Запуск Telegram бота
         logging.info("🤖 Запускаю Telegram бота...")
-        await dp.start_polling()
-
-    try:
-        # Запускаем всё
-        asyncio.run(main())
-    except (KeyboardInterrupt, SystemExit):
+        executor.start_polling(dp, skip_updates=True)
+        
+    except KeyboardInterrupt:
         logging.info("🛑 Бот остановлен")
     except Exception as e:
-        logging.error(f"❌ Критическая ошибка: {e}")
+        logging.error(f"❌ Ошибка: {e}")
