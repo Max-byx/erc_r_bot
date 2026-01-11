@@ -18,7 +18,7 @@ async def handle_web(request):
     return web.Response(text="Bot is alive!")
 
 web_app.router.add_get('/', handle_web)
-# ----------------------------------------
+
 QUESTIONS = [
     "Я беспокоюсь о том, что партнёр может меня разлюбить.",
     "Мне некомфортно, когда партнёр становится слишком близким.",
@@ -26,7 +26,7 @@ QUESTIONS = [
     "Я часто думаю о том, насколько я значим для партнёра.",
     "Я предпочитаю не слишком зависеть от партнёра.",
     "Я переживаю, что партнёр не так вовлечён в отношения, как я.",
-    "Мне сложно полностью открываться партнёра.",
+    "Мне сложно полностью открываться партнёру.",
     "Я боюсь быть отвергнутым.",
     "Я чувствую себя скованно, когда партнёр слишком эмоционально близок.",
     "Мне нужно много подтверждений любви.",
@@ -58,21 +58,12 @@ QUESTIONS = [
     "Я боюсь эмоциональной потери."
 ]
 
-# -----------------------------
-# ИНДЕКСЫ ШКАЛ
-# -----------------------------
 ANXIETY_IDX = {0,2,3,5,7,9,11,13,15,17,20,22,24,26,29,31,33,35}
 AVOIDANCE_IDX = {1,4,6,8,10,12,14,16,18,19,21,23,25,27,28,30,32,34}
 
-# -----------------------------
-# ХРАНЕНИЕ СОСТОЯНИЯ
-# -----------------------------
 user_answers = {}
 user_index = {}
 
-# -----------------------------
-# КЛАВИАТУРА ОЦЕНКИ
-# -----------------------------
 def scale_keyboard():
     kb = InlineKeyboardMarkup(row_width=7)
     for i in range(1, 8):
@@ -89,9 +80,6 @@ ANSWER_TEXT = {
     7: "7 — полностью про меня"
 }
 
-# -----------------------------
-# ИНТЕРПРЕТАЦИЯ РЕЗУЛЬТАТОВ
-# -----------------------------
 def interpret_attachment(anxiety, avoidance):
     result = []
 
@@ -184,9 +172,6 @@ def interpret_attachment(anxiety, avoidance):
 
     return "\n\n".join(result)
 
-# -----------------------------
-# СТАРТ
-# -----------------------------
 @dp.message_handler(commands=["start"])
 async def start_handler(message: types.Message):
     uid = message.from_user.id
@@ -195,7 +180,6 @@ async def start_handler(message: types.Message):
 
     desc = "\n".join(ANSWER_TEXT[i] for i in range(1, 8))
     
-    # Создаем клавиатуру как отдельный объект
     kb = InlineKeyboardMarkup()
     kb.add(InlineKeyboardButton("Начать тест", callback_data="start_test"))
 
@@ -220,7 +204,6 @@ async def start_test(call: types.CallbackQuery):
 @dp.callback_query_handler(lambda c: c.data.startswith("ans_"))
 async def answer_handler(call: types.CallbackQuery):
     uid = call.from_user.id
-    # Проверка, чтобы бот не падал при перезапуске
     if uid not in user_answers:
         user_answers[uid] = []
     if uid not in user_index:
@@ -237,14 +220,11 @@ async def answer_handler(call: types.CallbackQuery):
             reply_markup=scale_keyboard()
         )
     else:
-        # 1. Считаем баллы по категориям
         anxiety = sum(user_answers[uid][i] for i in ANXIETY_IDX)
         avoidance = sum(user_answers[uid][i] for i in AVOIDANCE_IDX)
         
-        # 2. Получаем текстовую интерпретацию
         interpretation = interpret_attachment(anxiety, avoidance)
         
-        # 3. Формируем единое красивое сообщение
         result_message = (
             f"📊 **Ваши результаты:**\n\n"
             f"🔹 **Тревожность:** {anxiety}/126\n"
@@ -256,7 +236,7 @@ async def answer_handler(call: types.CallbackQuery):
     await call.answer()
 
 def run_web_server():
-    """Запуск веб-сервера в отдельном потоке"""
+    """Запуск веб-сервера в отдельном потоке для keep-alive"""
     port = int(os.environ.get("PORT", 10000))
     web.run_app(web_app, host='0.0.0.0', port=port)
 
@@ -264,9 +244,9 @@ if __name__ == '__main__':
     import threading
     from aiogram import executor
     
-    # Запускаем веб-сервер в отдельном потоке для keep-alive
+    # Запускаем веб-сервер в отдельном потоке (для UptimeRobot/Render health checks)
     web_thread = threading.Thread(target=run_web_server, daemon=True)
     web_thread.start()
     
-    # Запускаем бота
+    # Запускаем Telegram бота
     executor.start_polling(dp, skip_updates=True)
