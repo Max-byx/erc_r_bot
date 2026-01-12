@@ -17,7 +17,8 @@ logger = logging.getLogger(__name__)
 # КОНФИГУРАЦИЯ
 # -----------------------------
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
-RENDER_URL = "https://erc-r-bot.onrender.com"  # Убедитесь, что URL верный
+# Убедитесь, что этот URL точный и совпадает с вашим сервисом Render
+RENDER_URL = "https://erc-r-bot.onrender.com"
 WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
 WEBHOOK_URL = f"{RENDER_URL}{WEBHOOK_PATH}"
 
@@ -68,11 +69,11 @@ QUESTIONS = [
     "Я боюсь эмоциональной потери."
 ]
 
-# Индексы вопросов (0-based)
+# Индексы шкал
 ANXIETY_IDX = {0,2,3,5,7,9,11,13,15,17,20,22,24,26,29,31,33,35}
 AVOIDANCE_IDX = {1,4,6,8,10,12,14,16,18,19,21,23,25,27,28,30,32,34}
 
-# Хранилище ответов
+# Хранилище состояния
 user_answers = {}
 user_index = {}
 
@@ -82,8 +83,11 @@ user_index = {}
 def scale_keyboard(show_back=False):
     """Клавиатура с оценками 1-7 и кнопкой Назад"""
     kb = InlineKeyboardMarkup(row_width=7)
+    # Генерируем кнопки 1-7
     buttons = [InlineKeyboardButton(str(i), callback_data=f"ans_{i}") for i in range(1, 8)]
     kb.add(*buttons)
+    
+    # Добавляем кнопку Назад, если нужно
     if show_back:
         kb.row(InlineKeyboardButton("⬅️ Назад", callback_data="back"))
     return kb
@@ -194,7 +198,7 @@ def interpret_attachment(anxiety, avoidance):
 @dp.message_handler(commands=["start"])
 async def start_handler(message: types.Message):
     uid = message.from_user.id
-    # Сброс состояния
+    # Сброс состояния для нового теста
     user_answers[uid] = []
     user_index[uid] = 0
 
@@ -215,7 +219,14 @@ async def start_handler(message: types.Message):
         "🔒 **Конфиденциальность:** Ваши ответы не сохраняются после перезапуска бота "
         "и не передаются третьим лицам.\n\n"
         "🕐 Тест займет 5-7 минут\n"
-        "📊 Результаты будут сразу после завершения"
+        "📊 Результаты будут сразу после завершения\n\n"
+        "1️⃣ — ❌ Совсем не про меня\n"
+        "2️⃣ — 👎 В основном не про меня\n"
+        "3️⃣ — 🤷 Скорее нет\n"
+        "4️⃣ — 😐 И да, и нет\n"
+        "5️⃣ — 👍 Скорее да\n"
+        "6️⃣ — 👌 В основном про меня\n"
+        "7️⃣ — ✅ Полностью про меня"
     )
     
     kb = InlineKeyboardMarkup()
@@ -229,6 +240,7 @@ async def start_test(call: types.CallbackQuery):
     user_index[uid] = 0
     user_answers[uid] = []
     
+    # Показываем первый вопрос
     await call.message.edit_text(
         f"Вопрос 1 из 36:\n\n{QUESTIONS[0]}", 
         reply_markup=scale_keyboard(show_back=False)
@@ -290,14 +302,17 @@ async def answer_handler(call: types.CallbackQuery):
     await call.answer()
 
 # -----------------------------
-# WEBHOOK HANDLERS
+# ВЕБХУКИ И СЕРВЕР (Для Render)
 # -----------------------------
 async def handle_webhook(request):
+    """Обработчик обновлений от Telegram"""
     try:
         data = await request.json()
         update = types.Update(**data)
-        # ВАЖНО: Установка контекста для корректной работы aiogram
+        
+        # КРИТИЧНО ВАЖНО: Установка контекста бота
         Bot.set_current(bot)
+        
         await dp.process_update(update)
         return web.Response(text="OK")
     except Exception as e:
@@ -305,18 +320,20 @@ async def handle_webhook(request):
         return web.Response(status=500)
 
 async def on_startup(app):
+    """Настройка при старте"""
     await bot.delete_webhook(drop_pending_updates=True)
     await bot.set_webhook(WEBHOOK_URL)
     logger.info(f"✅ Webhook set to: {WEBHOOK_URL}")
 
 async def on_shutdown(app):
+    """Очистка при выключении"""
     await bot.delete_webhook()
     await dp.storage.close()
     await dp.storage.wait_closed()
     logger.info("🛑 Bot stopped")
 
 # -----------------------------
-# ЗАПУСК ПРИЛОЖЕНИЯ
+# ЗАПУСК
 # -----------------------------
 app.router.add_get('/', lambda r: web.Response(text="Bot is running"))
 app.router.add_post(f'/webhook/{BOT_TOKEN}', handle_webhook)
